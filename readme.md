@@ -12,5 +12,5 @@ Generate a JSON manifest to describe an upcoming CAC update, and generate a draf
 
 Perform updates as specified in the `.cac-major-update.json` manifest file created by `wp cac prepare_major_update`.
 
-__Note__: this command requires the PECL `svn` package, as well as [https://github.com/boonebgorges/wp-cli-git-helper/ wp-cli-git-helper].
+__Note__: this command requires the PECL `svn` package, as well as [wp-cli-git-helper](https://github.com/boonebgorges/wp-cli-git-helper/).
 __Note__: this command currently does not have a dry-run version, so use at your own risk.
