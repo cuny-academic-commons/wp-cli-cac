@@ -87,11 +87,40 @@ class CAC_Command extends WP_CLI_Command {
 		WP_CLI::success( 'All done! Be sure to review the release manifest (.cac-major-update.json) before checking into the repo.' );
 	}
 
-	protected function prepare_major_update_for_type( $type ) {
-		if ( 'theme' !== $type ) {
-			$type = 'plugin';
+	/**
+	 * Perform major updates as previously prepared by prepare_major_release.
+	 */
+	public function do_major_update( $args, $assoc_args ) {
+		$json_path = ABSPATH . '.cac-major-update.json';
+
+		if ( ! function_exists( 'svn_ls' ) ) {
+			WP_CLI::error( "You must have the svn PECL module to use this command (pecl install svn).\n\n(Ugh, don't ask.)" );
+			return;
 		}
 
+		if ( ! file_exists( $json_path ) ) {
+			WP_CLI::error( sprintf( 'Could not find a manifest at %s.', $json_path ) );
+			return;
+		}
+
+		$update_data = json_decode( file_get_contents( $json_path ) );
+
+		foreach ( $update_data->data as $type => $items ) {
+			$this->do_major_update_for_type( $type, $items );
+		}
+
+		unlink( $json_path );
+		WP_CLI::log( sprintf( 'Deleted %s.', $json_path ) );
+		WP_CLI::success( 'Major updates completed.' );
+	}
+
+	/**
+	 * Fetch a formatted list of items with available updates.
+	 *
+	 * @param string $type Item type. 'plugin' or 'theme'.
+	 * @return array
+	 */
+	protected function get_available_updates_for_type( $type ) {
 		$command = "$type list";
 
 		$assoc_args = array(
@@ -103,53 +132,105 @@ class CAC_Command extends WP_CLI_Command {
 		$results = WP_CLI::launch_self( $command, array(), $assoc_args, true, true );
 
 		if ( ! empty( $results->stderr ) ) {
-			WP_CLI::error( $results->stderr );
+			return false;
 		}
 
-		$items = explode( "\n", trim( $results->stdout ) );
+		$raw_items = explode( "\n", trim( $results->stdout ) );
+
+		$items = array();
+		foreach ( $raw_items as $i => $raw_item ) {
+			// Discard title row.
+			if ( 0 === $i ) {
+				continue;
+			}
+
+			$item_data = explode( ',', $raw_item );
+
+			$items[ $item_data[0] ] = array(
+				'name' => $item_data[0],
+
+				// Titles have been csv-encoded, so strip the quotes.
+				'title' => preg_replace( '/^"?([^"]+)"?$/', '\1', $item_data[1] ),
+				'update_version' => $item_data[2],
+				'version' => $item_data[3],
+			);
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Compare version numbers and determine whether it's a major update + the whitelisted update series.
+	 *
+	 * @param string $new_version
+	 * @param string $old_version
+	 * @return array
+	 */
+	protected function version_compare( $new_version, $old_version ) {
+		// "Major" means that either x or y is different. Blargh.
+		$new_version_a = explode( '.', $new_version );
+		$old_version_a = explode( '.', $old_version );
+
+		$is_major_update = false;
+		$update_series = array();
+		for ( $i = 0; $i <= 1; $i++ ) {
+			$new_version_place = isset( $new_version_a[ $i ] ) ? intval( $new_version_a[ $i ] ) : 0;
+			$old_version_place = isset( $old_version_a[ $i ] ) ? intval( $old_version_a[ $i ] ) : 0;
+
+			$update_series[] = $new_version_place;
+			if ( $new_version_place != $old_version_place ) {
+				$is_major_update = true;
+			}
+		}
+
+		return array(
+			'is_major_update' => $is_major_update,
+			'update_series' => implode( '.', $update_series ),
+		);
+	}
+
+	/**
+	 * Prepare major update data for an item type.
+	 *
+	 * @param string $type Item type. 'plugin' or 'theme'.
+	 * @return array
+	 */
+	protected function prepare_major_update_for_type( $type ) {
+		if ( 'theme' !== $type ) {
+			$type = 'plugin';
+		}
+
+		$items = $this->get_available_updates_for_type( $type );
+
+		if ( false === $items ) {
+			WP_CLI::error( $results->stderr );
+			return;
+		}
 
 		$updates = array();
-		foreach ( $items as $item ) {
-			$item_data = explode( ',', $item );
-
+		foreach ( $items as $item_data ) {
 			// Ignore items from blacklist.
-			if ( in_array( $item_data[0], $this->do_not_update[ $type ] ) ) {
+			if ( in_array( $item_data['name'], $this->do_not_update[ $type ] ) ) {
 				continue;
 			}
 
-			$new_version = $item_data[2];
-			$old_version = $item_data[3];
+			$new_version = $item_data['update_version'];
+			$old_version = $item_data['version'];
 
-			// "Major" means that either x or y is different. Blargh.
-			$new_version_a = explode( '.', $new_version );
-			$old_version_a = explode( '.', $old_version );
-
-			$is_major_update = false;
-			$update_series = array();
-			for ( $i = 0; $i <= 1; $i++ ) {
-				$new_version_place = isset( $new_version_a[ $i ] ) ? intval( $new_version_a[ $i ] ) : 0;
-				$old_version_place = isset( $old_version_a[ $i ] ) ? intval( $old_version_a[ $i ] ) : 0;
-
-				$update_series[] = $new_version_place;
-				if ( $new_version_place != $old_version_place ) {
-					$is_major_update = true;
-				}
-			}
+			$version_compare = $this->version_compare( $new_version, $old_version );
 
 			// Not a major update.
-			if ( ! $is_major_update ) {
+			if ( ! $version_compare['is_major_update'] ) {
 				continue;
 			}
 
-			// Titles have been csv-encoded, so strip the quotes.
-			$item_data[1] = preg_replace( '/^"?([^"]+)"?$/', '\1', $item_data[1] );
 			$item_update = array(
-				'name' => $item_data[0],
-				'title' => $item_data[1],
-				'update_series' => implode( '.', $update_series ),
+				'name' => $item_data['name'],
+				'title' => $item_data['title'],
+				'update_series' => $version_compare['update_series'],
 			);
 
-			$updates[ $item_data[0] ] = $item_update;
+			$updates[ $item_data['name'] ] = $item_update;
 		}
 
 		return $updates;
@@ -199,6 +280,54 @@ class CAC_Command extends WP_CLI_Command {
 			'title' => $title,
 			'text' => $text,
 		);
+	}
+
+	protected function do_major_update_for_type( $type, $items ) {
+		// Get a list of available updates. If whitelisted series matches, no need to check svn.
+		$available_updates = $this->get_available_updates_for_type( $type );
+
+		$updates = array();
+		foreach ( $items as $item ) {
+			if ( ! isset( $available_updates[ $item->name ] ) ) {
+				return;
+			}
+
+			$available_version = $available_updates[ $item->name ]['update_version'];
+
+			$version_compare = $this->version_compare( $available_version, $item->update_series );
+
+			if ( ! $version_compare['is_major_update'] ) {
+				$updates[ $item->name ] = 'latest';
+				continue;
+			}
+
+			// There's a mismatch, so we have to scrape wordpress.org for versions. Whee!
+			// @todo Get someone to implement this in the API.
+			$url = "http://{$type}s.svn.wordpress.org/{$item->name}/tags/";
+			$versions = svn_ls( $url );
+			$versions = array_keys( $versions );
+			rsort( $versions );
+
+			foreach ( $versions as $v ) {
+				$v_version_compare = $this->version_compare( $v, $item->update_series );
+
+				if ( ! $v_version_compare['is_major_update'] ) {
+					$updates[ $item->name ] = $v;
+					break;
+				}
+			}
+		}
+
+		foreach ( $updates as $plugin_name => $update_version ) {
+			$args = array( 'gh', $type, 'update', $plugin_name );
+
+			$assoc_args = array();
+			if ( 'latest' !== $update_version ) {
+				$assoc_args['version'] = $update_version;
+			}
+
+			WP_CLI::run_command( $args, $assoc_args );
+		}
 	}
 }
 

@@ -4,10 +4,13 @@ wp-cli tools for managing the CUNY Academic Commons.
 
 ## Commands
 
-### `wp cac prepare_major_update`
+### `$ wp cac prepare_major_update`
 
-Generate a JSON manifest to describe an upcoming CAC update, and generate a draft blog post. Use:
+Generate a JSON manifest to describe an upcoming CAC update, and generate a draft blog post. The `--version` and `--date` flags are optional. See `--help` for details.
 
-    $ wp cac prepare_major_update
+### `$ wp cac do_major_update`
 
-The `--version` and `--date` flags are optional. See `--help` for details.
+Perform updates as specified in the `.cac-major-update.json` manifest file created by `wp cac prepare_major_update`.
+
+__Note__: this command requires the PECL `svn` package, as well as [https://github.com/boonebgorges/wp-cli-git-helper/ wp-cli-git-helper].
+__Note__: this command currently does not have a dry-run version, so use at your own risk.
