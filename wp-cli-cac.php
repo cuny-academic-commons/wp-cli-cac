@@ -7,7 +7,10 @@ class CAC_Command extends WP_CLI_Command {
 	protected $do_not_update = array(
 		'plugin' => array(
 			'buddypress-group-documents',
-			'bp-import-blog-activity'
+			'bp-import-blog-activity',
+			'cac-group-admin-auto-add',
+			'forum-attachments-for-buddypress',
+			'wp-mailinglist',
 		),
 		'theme' => array(
 			'atahualpa',
@@ -114,6 +117,43 @@ class CAC_Command extends WP_CLI_Command {
 		unlink( $json_path );
 		WP_CLI::log( sprintf( 'Deleted %s.', $json_path ) );
 		WP_CLI::success( 'Major updates completed.' );
+	}
+
+	/**
+	 * Perform minor updates.
+	 */
+	public function do_minor_update( $args, $assoc_args ) {
+		$types = array( 'plugin', 'theme' );
+
+		$update_data = array(
+			'header' => '',
+			'data' => array(),
+		);
+
+		foreach ( $types as $type ) {
+			$items = $this->get_available_updates_for_type( $type );
+
+			foreach ( $items as $item_data ) {
+				// Ignore items from blacklist.
+				if ( in_array( $item_data['name'], $this->do_not_update[ $type ] ) ) {
+					continue;
+				}
+
+				$new_version = $item_data['update_version'];
+				$old_version = $item_data['version'];
+
+				$version_compare = $this->version_compare( $new_version, $old_version );
+
+				// Skip major updates.
+				if ( $version_compare['is_major_update'] ) {
+					continue;
+				}
+
+				$args = array( 'gh', $type, 'update', $item_data['name'] );
+
+				WP_CLI::run_command( $args, array() );
+			}
+		}
 	}
 
 	/**

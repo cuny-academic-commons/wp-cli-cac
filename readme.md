@@ -14,3 +14,7 @@ Perform updates as specified in the `.cac-major-update.json` manifest file creat
 
 __Note__: this command requires the PECL `svn` package, as well as [wp-cli-git-helper](https://github.com/boonebgorges/wp-cli-git-helper/).
 __Note__: this command currently does not have a dry-run version, so use at your own risk.
+
+### `$ wp cac do_minor_update`
+
+Perform minor theme and plugin updates.
