@@ -331,7 +331,7 @@ class CAC_Command extends WP_CLI_Command {
 		$updates = array();
 		foreach ( $items as $item ) {
 			if ( ! isset( $available_updates[ $item->name ] ) ) {
-				return;
+				continue;
 			}
 
 			$available_version = $available_updates[ $item->name ]['update_version'];
