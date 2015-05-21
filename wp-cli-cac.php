@@ -352,7 +352,13 @@ class CAC_Command extends WP_CLI_Command {
 			// There's a mismatch, so we have to scrape wordpress.org for versions. Whee!
 			// @todo Get someone to implement this in the API.
 			$url = "http://{$type}s.svn.wordpress.org/{$item->name}/tags/";
-			$versions = svn_ls( $url );
+			$versions = @svn_ls( $url );
+
+			// If a plugin has been closed or whatever.
+			if ( ! $versions ) {
+				continue;
+			}
+
 			$versions = array_keys( $versions );
 			rsort( $versions );
 
