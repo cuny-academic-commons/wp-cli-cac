@@ -152,7 +152,12 @@ class CAC_Command extends WP_CLI_Command {
 
 				$args = array( 'gh', $type, 'update', $item_data['name'] );
 
+				// Override locale so we can skip translation updates.
+				add_filter( 'locale', array( $this, 'set_locale' ) );
+
 				WP_CLI::run_command( $args, array() );
+
+				remove_filter( 'locale', array( $this, 'set_locale' ) );
 			}
 		}
 	}
@@ -369,8 +374,17 @@ class CAC_Command extends WP_CLI_Command {
 				$assoc_args['version'] = $update_version;
 			}
 
+			// Override locale so we can skip translation updates.
+			add_filter( 'locale', array( $this, 'set_locale' ) );
+
 			WP_CLI::run_command( $args, $assoc_args );
+
+			remove_filter( 'locale', array( $this, 'set_locale' ) );
 		}
+	}
+
+	public function set_locale( $locale ) {
+		return 'en_US';
 	}
 }
 
