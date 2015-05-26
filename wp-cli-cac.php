@@ -9,7 +9,6 @@ class CAC_Command extends WP_CLI_Command {
 			'buddypress-group-documents',
 			'bp-import-blog-activity',
 			'cac-group-admin-auto-add',
-			'event-organiser', // temp
 			'forum-attachments-for-buddypress',
 			'wp-mailinglist',
 		),
