@@ -98,11 +98,6 @@ class CAC_Command extends WP_CLI_Command {
 	public function do_major_update( $args, $assoc_args ) {
 		$json_path = ABSPATH . '.cac-major-update.json';
 
-		if ( ! function_exists( 'svn_ls' ) ) {
-			WP_CLI::error( "You must have the svn PECL module to use this command (pecl install svn).\n\n(Ugh, don't ask.)" );
-			return;
-		}
-
 		if ( ! file_exists( $json_path ) ) {
 			WP_CLI::error( sprintf( 'Could not find a manifest at %s.', $json_path ) );
 			return;
@@ -350,15 +345,24 @@ class CAC_Command extends WP_CLI_Command {
 
 			// There's a mismatch, so we have to scrape wordpress.org for versions. Whee!
 			// @todo Get someone to implement this in the API.
+			// Used to use `svn_ls()` for this, but PECL broke for me. Let the fun begin.
 			$url = "http://{$type}s.svn.wordpress.org/{$item->name}/tags/";
-			$versions = @svn_ls( $url );
+			$f = wp_remote_get( $url );
+			$body = wp_remote_retrieve_body( $f );
+
+			$dom = new DomDocument();
+			$dom->loadHTML( $body );
+			$tags = $dom->getElementsByTagName( 'li' );
+			$versions = array();
+			foreach ( $tags as $tag ) {
+				$versions[] = rtrim( $tag->nodeValue, '/' );
+			}
 
 			// If a plugin has been closed or whatever.
 			if ( ! $versions ) {
 				continue;
 			}
 
-			$versions = array_keys( $versions );
 			rsort( $versions );
 
 			foreach ( $versions as $v ) {
