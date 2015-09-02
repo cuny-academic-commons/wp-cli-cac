@@ -465,6 +465,9 @@ class CAC_Command extends WP_CLI_Command {
 		$_assoc_args = $base_assoc_args;
 
 		WP_CLI::run_command( $_args, $_assoc_args );
+
+		WP_CLI::success( 'Domains switched!' );
+		WP_CLI::error( 'wp-cli cannot flush site caches, so make sure to do it yourself!' );
 	}
 }
 
