@@ -421,20 +421,20 @@ class CAC_Command extends WP_CLI_Command {
 		$from_domain = $assoc_args['from'];
 		$to_domain   = $assoc_args['to'];
 
-		$from_site = get_site_by_path( $from_domain );
+		$from_site = get_site_by_path( $from_domain, '/' );
 		if ( ! $from_site ) {
 			WP_CLI::error( sprintf( 'No site with the domain %s was found. Aborting.', $from_domain ) );
 			return;
 		}
 
-		$to_site = get_site_by_path( $to_domain );
+		$to_site = get_site_by_path( $to_domain, '/' );
 		if ( $to_site ) {
 			WP_CLI::error( sprintf( 'An existing site was found with the domain %s. Aborting.', $to_domain ) );
 		}
 
 		// Blog-specific tables first.
 		$base_args = array( 'search-replace', $from_domain, $to_domain );
-		$base_assoc_args = array( 'skip-columns' => 'guid' );
+		$base_assoc_args = array( 'skip-columns' => 'guid', 'precise' => 1 );
 		if ( isset( $assoc_args['dry-run'] ) ) {
 			$base_assoc_args['dry-run'] = 1;
 		}
