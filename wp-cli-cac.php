@@ -395,6 +395,77 @@ class CAC_Command extends WP_CLI_Command {
 	public function set_locale( $locale ) {
 		return 'en_US';
 	}
+
+	/**
+	 * Change a site's domain.
+	 *
+	 * ## OPTIONS
+	 *
+	 * --from=<from>
+	 * : The current domain of the site being changed.
+	 *
+	 * --to=<date>
+	 * : The domain that the site is being changed to.
+	 *
+	 * [--dry-run]
+	 * : Whether this should be a dry run.
+	 */
+	public function change_domain( $args, $assoc_args ) {
+		global $wpdb;
+
+		if ( empty( $assoc_args['from'] ) || empty( $assoc_args['to'] ) ) {
+			WP_CLI::error( "The 'from' and 'to' parameters are required." );
+			return;
+		}
+
+		$from_domain = $assoc_args['from'];
+		$to_domain   = $assoc_args['to'];
+
+		$from_site = get_site_by_path( $from_domain );
+		if ( ! $from_site ) {
+			WP_CLI::error( sprintf( 'No site with the domain %s was found. Aborting.', $from_domain ) );
+			return;
+		}
+
+		$to_site = get_site_by_path( $to_domain );
+		if ( $to_site ) {
+			WP_CLI::error( sprintf( 'An existing site was found with the domain %s. Aborting.', $to_domain ) );
+		}
+
+		// Blog-specific tables first.
+		$base_args = array( 'search-replace', $from_domain, $to_domain );
+		$base_assoc_args = array( 'skip-columns' => 'guid' );
+		if ( isset( $assoc_args['dry-run'] ) ) {
+			$base_assoc_args['dry-run'] = 1;
+		}
+
+		$blog_tables = $wpdb->get_col( "SHOW TABLES LIKE '" . like_escape( $wpdb->get_blog_prefix( $from_site->blog_id ) ) . "%'" );
+		$_args = array_merge( $base_args, $blog_tables );
+		$_assoc_args = $base_assoc_args;
+
+		WP_CLI::run_command( $_args, $_assoc_args );
+
+		// Global tables next.
+		$global_tables = array_merge( $wpdb->global_tables, $wpdb->ms_global_tables );
+		foreach ( $global_tables as &$global_table ) {
+			$global_table = $wpdb->base_prefix . $global_table;
+		}
+
+		if ( function_exists( 'buddypress' ) ) {
+			$bp_prefix = bp_core_get_table_prefix() . 'bp_';
+			$bp_prefix = esc_sql( $bp_prefix ); // just in case....
+			$bp_tables = $wpdb->get_col( "SHOW TABLES LIKE '$bp_prefix%'" );
+
+			if ( $bp_tables ) {
+				$global_tables = array_merge( $global_tables, $bp_tables );
+			}
+		}
+
+		$_args = array_merge( $base_args, $global_tables );
+		$_assoc_args = $base_assoc_args;
+
+		WP_CLI::run_command( $_args, $_assoc_args );
+	}
 }
 
 WP_CLI::add_command( 'cac', 'CAC_Command' );
