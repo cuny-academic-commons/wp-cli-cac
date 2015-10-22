@@ -10,6 +10,7 @@ class CAC_Command extends WP_CLI_Command {
 			'bp-import-blog-activity',
 			'cac-group-admin-auto-add',
 			'forum-attachments-for-buddypress',
+                        'post-gallery-widget',
 			'wp-mailinglist',
 		),
 		'theme' => array(
