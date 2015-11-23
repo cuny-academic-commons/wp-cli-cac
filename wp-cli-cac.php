@@ -11,6 +11,7 @@ class CAC_Command extends WP_CLI_Command {
 			'cac-group-admin-auto-add',
 			'forum-attachments-for-buddypress',
                         'post-gallery-widget',
+			'wp-front-end-editor', // we run a fork
 			'wp-mailinglist',
 		),
 		'theme' => array(
