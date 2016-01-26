@@ -90,6 +90,7 @@ class CAC_Command extends WP_CLI_Command {
 		WP_CLI::log( '' );
 
 		WP_CLI::error( 'Don\'t forget to manually check WooThemes for available updates.' );
+		WP_CLI::error( 'Also, don\'t forget to manually check https://wpcom-themes.svn.automattic.com for updates to "imbalance2" and "manifest".' );
 
 		WP_CLI::success( 'All done! Be sure to review the release manifest (.cac-major-update.json) before checking into the repo.' );
 	}
