@@ -18,3 +18,7 @@ __Note__: this command currently does not have a dry-run version, so use at your
 ### `$ wp cac do_minor_update`
 
 Perform minor theme and plugin updates.
+
+## License
+
+Available under the terms of the GNU General Public License v2 or greater.
