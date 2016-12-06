@@ -8,14 +8,11 @@
 		"php": ">=5.3",
 		"boonebgorges/wp-cli-git-helper": "dev-master"
 	},
+	"minimum-stability": "dev",
 	"repositories": [
 		{
 		    "type": "vcs",
 		    "url": "https://github.com/boonebgorges/wp-cli-git-helper"
-		},
-		{
-		    "type": "vcs",
-		    "url": "https://github.com/kbjr/Git.php"
 		}
         ],
 	"license": "MIT",
