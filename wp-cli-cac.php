@@ -1,5 +1,7 @@
 <?php
 
+require 'vendor/autoload.php';
+
 // Bail if WP-CLI is not present.
 defined( 'WP_CLI' ) || die();
 
@@ -136,6 +138,13 @@ class CAC_Command extends WP_CLI_Command {
 	 * Perform minor updates.
 	 */
 	public function do_minor_update( $args, $assoc_args ) {
+		$root = WP_CLI::get_root_command();
+		$commands = $root->get_subcommands();
+
+		if ( ! isset( $commands['gh'] ) ) {
+			WP_CLI::add_command( 'gh', '\boonebgorges\WPCLIGitHelper\Command' );
+		}
+
 		$types = array( 'plugin', 'theme' );
 
 		$update_data = array(
