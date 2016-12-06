@@ -1,7 +1,7 @@
 <?php
 
 // Bail if WP-CLI is not present.
-if ( !defined( 'WP_CLI' ) ) return;
+defined( 'WP_CLI' ) || die();
 
 class CAC_Command extends WP_CLI_Command {
 	protected $update_blacklist = array(
@@ -89,7 +89,7 @@ class CAC_Command extends WP_CLI_Command {
 
 		$update_data['header'] = sprintf( 'CAC major upgrades for %s', $assoc_args['date'] );
 		file_put_contents( $json_path, json_encode( $update_data, JSON_PRETTY_PRINT ) );
-		WP_CLI::log( sprintf( "Saved results to %s.", $json_path ) );
+		WP_CLI::log( sprintf( 'Saved results to %s.', $json_path ) );
 
 		$blog_post = $this->generate_major_update_blog_post( $update_data, $assoc_args );
 
@@ -474,7 +474,7 @@ class CAC_Command extends WP_CLI_Command {
 		if ( function_exists( 'buddypress' ) ) {
 			$bp_prefix = bp_core_get_table_prefix() . 'bp_';
 			$bp_prefix = esc_sql( $bp_prefix ); // just in case....
-			$bp_tables = $wpdb->get_col( "SHOW TABLES LIKE '$bp_prefix%'" );
+			$bp_tables = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s%', $bp_prefix ) );
 
 			if ( $bp_tables ) {
 				$global_tables = array_merge( $global_tables, $bp_tables );
