@@ -138,12 +138,7 @@ class CAC_Command extends WP_CLI_Command {
 	 * Perform minor updates.
 	 */
 	public function do_minor_update( $args, $assoc_args ) {
-		$root = WP_CLI::get_root_command();
-		$commands = $root->get_subcommands();
-
-		if ( ! isset( $commands['gh'] ) ) {
-			WP_CLI::add_command( 'gh', '\boonebgorges\WPCLIGitHelper\Command' );
-		}
+		$this->maybe_register_gh_command();
 
 		$types = array( 'plugin', 'theme' );
 
@@ -354,6 +349,8 @@ class CAC_Command extends WP_CLI_Command {
 	}
 
 	protected function do_major_update_for_type( $type, $items ) {
+		$this->maybe_register_gh_command();
+
 		// Get a list of available updates. If whitelisted series matches, no need to check svn.
 		$available_updates = $this->get_available_updates_for_type( $type );
 
@@ -515,6 +512,14 @@ class CAC_Command extends WP_CLI_Command {
 			$this->update_blacklist['theme'] = array_filter( explode( ',', $assoc_args['exclude-themes'] ) );
 		} else {
 			$this->update_blacklist['theme'] = $this->do_not_update['theme'];
+		}
+	}
+
+	protected function maybe_register_gh_command() {
+		$root = WP_CLI::get_root_command();
+		$commands = $root->get_subcommands();
+		if ( ! isset( $commands['gh'] ) ) {
+			WP_CLI::add_command( 'gh', '\boonebgorges\WPCLIGitHelper\Command' );
 		}
 	}
 }
