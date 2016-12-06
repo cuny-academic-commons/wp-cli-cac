@@ -114,6 +114,14 @@ class CAC_Command extends WP_CLI_Command {
 
 	/**
 	 * Perform major updates as previously prepared by prepare_major_release.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--exclude-plugins=<plugins>]
+	 * : Comma-separated list of plugin slugs to be excluded.
+	 *
+	 * [--exclude-themes=<themes>]
+	 * : Comma-separated list of theme slugs to be excluded.
 	 */
 	public function do_major_update( $args, $assoc_args ) {
 		$json_path = ABSPATH . '.cac-major-update.json';
@@ -136,6 +144,14 @@ class CAC_Command extends WP_CLI_Command {
 
 	/**
 	 * Perform minor updates.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--exclude-plugins=<plugins>]
+	 * : Comma-separated list of plugin slugs to be excluded.
+	 *
+	 * [--exclude-themes=<themes>]
+	 * : Comma-separated list of theme slugs to be excluded.
 	 */
 	public function do_minor_update( $args, $assoc_args ) {
 		$this->maybe_register_gh_command();
