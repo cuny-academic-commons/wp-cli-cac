@@ -4,6 +4,16 @@
 if ( !defined( 'WP_CLI' ) ) return;
 
 class CAC_Command extends WP_CLI_Command {
+	protected $update_blacklist = array(
+		'plugin' => array(),
+		'theme' => array(),
+	);
+
+	/**
+	 * Default blacklist values.
+	 *
+	 * Can be overridden with exclude-plugin and exclude-theme flags.
+	 */
 	protected $do_not_update = array(
 		'plugin' => array(
 			'buddypress-group-documents',
@@ -65,6 +75,8 @@ class CAC_Command extends WP_CLI_Command {
 			$assoc_args['version'],
 			$assoc_args['date']
 		) );
+
+		$this->set_up_blacklist( $assoc_args );
 
 		foreach ( $types as $type ) {
 			$data = $this->prepare_major_update_for_type( $type );
@@ -130,12 +142,14 @@ class CAC_Command extends WP_CLI_Command {
 			'data' => array(),
 		);
 
+		$this->set_up_blacklist( $assoc_args );
+
 		foreach ( $types as $type ) {
 			$items = $this->get_available_updates_for_type( $type );
 
 			foreach ( $items as $item_data ) {
 				// Ignore items from blacklist.
-				if ( in_array( $item_data['name'], $this->do_not_update[ $type ] ) ) {
+				if ( in_array( $item_data['name'], $this->update_blacklist[ $type ] ) ) {
 					continue;
 				}
 
@@ -257,7 +271,7 @@ class CAC_Command extends WP_CLI_Command {
 		$updates = array();
 		foreach ( $items as $item_data ) {
 			// Ignore items from blacklist.
-			if ( in_array( $item_data['name'], $this->do_not_update[ $type ] ) ) {
+			if ( in_array( $item_data['name'], $this->update_blacklist[ $type ] ) ) {
 				continue;
 			}
 
@@ -473,6 +487,25 @@ class CAC_Command extends WP_CLI_Command {
 
 		WP_CLI::success( 'Domains switched!' );
 		WP_CLI::error( 'wp-cli cannot flush site caches, so make sure to do it yourself!' );
+	}
+
+	/**
+	 * Set up the update blacklist, based on arguments passed to the command.
+	 *
+	 * @param array $assoc_args Associative argument array.
+	 */
+	protected function set_up_blacklist( $assoc_args ) {
+		if ( isset( $assoc_args['exclude-plugins'] ) ) {
+			$this->update_blacklist['plugin'] = array_filter( explode( ',', $assoc_args['exclude-plugins'] ) );
+		} else {
+			$this->update_blacklist['plugin'] = $this->do_not_update['plugin'];
+		}
+
+		if ( isset( $assoc_args['exclude-themes'] ) ) {
+			$this->update_blacklist['theme'] = array_filter( explode( ',', $assoc_args['exclude-themes'] ) );
+		} else {
+			$this->update_blacklist['theme'] = $this->do_not_update['theme'];
+		}
 	}
 }
 
