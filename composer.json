@@ -6,7 +6,7 @@
 	"homepage": "https://github.com/cuny-academic-commons/wp-cli-cac",
 	"require": {
 		"php": ">=5.3",
-		"boonebgorges/wp-cli-git-helper": "master"
+		"boonebgorges/wp-cli-git-helper": "dev-master"
 	},
 	"repositories": [
         {
