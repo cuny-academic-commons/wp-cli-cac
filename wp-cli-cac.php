@@ -24,6 +24,7 @@ class CAC_Command extends WP_CLI_Command {
 			'event-organiser',
 			'forum-attachments-for-buddypress',
 			'post-gallery-widget',
+			'wordpress-mu-domain-mapping',
 			'wp-front-end-editor', // we run a fork.
 			'wp-mailinglist',
 			'wysija-newsletters',
