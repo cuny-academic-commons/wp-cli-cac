@@ -54,12 +54,34 @@ class CAC_Command extends WP_CLI_Command {
 			'data' => array(),
 		);
 
+		$month = date( 'M' );
+		$first_release = new DateTime( "second tuesday of $month" );
+		$second_release = new DateTime( "fourth tuesday of $month" );
+
+		// Infer that release date is fourth Tuesday of this month.
+		if ( ! isset( $assoc_args['date'] ) ) {
+			$assoc_args['date'] = $second_release->format( 'Y-m-d' );
+		}
+
 		if ( ! isset( $assoc_args['version'] ) ) {
 			$version = 'x.y.z';
+
 			if ( defined( 'CAC_VERSION' ) ) {
 				if ( preg_match( '/^[0-9]+\.[0-9]+\.([0-9]+)/', CAC_VERSION, $matches ) ) {
 					$z = $matches[1];
-					$new_z = (string) $z + 2;
+					$new_z = $z;
+
+					$release_time = strtotime( $assoc_args['date'] );
+					$dom = date( 'j' );
+					$year = date( 'Y' );
+					$month = date( 'm' );
+					for ( $i = date( 'j' ); $i <= intval( $second_release->format( 'j' ) ); $i++ ) {
+						$maybe_date = "$year-$month-$i";
+						if ( $maybe_date === $first_release->format( 'Y-m-d' ) || $maybe_date === $second_release->format( 'Y-m-d' ) ) {
+							$new_z++;
+						}
+					}
+					$new_z = (string) $new_z;
 
 					$cac_v_a = explode( '.', CAC_VERSION );
 					$cac_v_a[2] = $new_z;
