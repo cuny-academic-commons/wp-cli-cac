@@ -90,11 +90,6 @@ class CAC_Command extends WP_CLI_Command {
 			}
 		}
 
-		// Infer that release date is 21st of this month.
-		if ( ! isset( $assoc_args['date'] ) ) {
-			$assoc_args['date'] = date( 'Y-m-21' );
-		}
-
 		WP_CLI::log( sprintf(
 			'Generating data for CAC %s, scheduled for release on %s. If this is incorrect, please use the --version and --date options to specify a version and date.',
 			$assoc_args['version'],
