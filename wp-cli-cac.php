@@ -186,6 +186,9 @@ class CAC_Command extends WP_CLI_Command {
 
 		foreach ( $types as $type ) {
 			$items = $this->get_available_updates_for_type( $type );
+			if ( empty( $items ) ) {
+				continue;
+			}
 
 			foreach ( $items as $item_data ) {
 				// Ignore items from blacklist.
@@ -224,19 +227,23 @@ class CAC_Command extends WP_CLI_Command {
 	protected function get_available_updates_for_type( $type ) {
 		$command = "$type list";
 
-		$assoc_args = array(
-			'update' => 'available',
-			'format' => 'csv',
-			'fields' => 'name,title,update_version,version',
-		);
+		$assoc_args = '--update=available --format=csv --fields=name,title,update_version,version';
 
-		$results = WP_CLI::launch_self( $command, array(), $assoc_args, true, true );
+		$results = WP_CLI::runcommand( $command . ' ' . $assoc_args, array(
+			'return' => true
+		) );
 
-		if ( ! empty( $results->stderr ) ) {
+		/*
+		 * No results, so bail!
+		 *
+		 * Here, we're checking if there is a line return. If there isn't, then we
+		 * only have the title row, which means no results.
+		 */
+		if ( false === strpos( $results, "\n" ) ) {
 			return false;
 		}
 
-		$raw_items = explode( "\n", trim( $results->stdout ) );
+		$raw_items = explode( "\n", trim( $results ) );
 
 		$items = array();
 		foreach ( $raw_items as $i => $raw_item ) {
