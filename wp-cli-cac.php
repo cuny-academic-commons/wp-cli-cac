@@ -1,6 +1,8 @@
 <?php
-
-require 'vendor/autoload.php';
+// Load autoloader if available.
+if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+	require __DIR__  . '/vendor/autoload.php';
+}
 
 // Bail if WP-CLI is not present.
 defined( 'WP_CLI' ) || die();
