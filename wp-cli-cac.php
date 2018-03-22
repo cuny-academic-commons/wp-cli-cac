@@ -4,8 +4,10 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require __DIR__  . '/vendor/autoload.php';
 }
 
-// Bail if WP-CLI is not present.
-defined( 'WP_CLI' ) || die();
+// Register our command if WP-CLI is available.
+if ( defined( 'WP_CLI' ) ) {
+	WP_CLI::add_command( 'cac', 'CAC_Command' );
+}
 
 class CAC_Command extends WP_CLI_Command {
 	protected $update_blacklist = array(
@@ -567,5 +569,3 @@ class CAC_Command extends WP_CLI_Command {
 		}
 	}
 }
-
-WP_CLI::add_command( 'cac', 'CAC_Command' );
