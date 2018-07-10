@@ -26,6 +26,7 @@ class CAC_Command extends WP_CLI_Command {
 			'bp-import-blog-activity',
 			'cac-group-admin-auto-add',
 			'forum-attachments-for-buddypress',
+			'plugins-list', // not compatible with our PHP.
 			'post-gallery-widget',
 			'wordpress-mu-domain-mapping',
 			'wp-front-end-editor', // we run a fork.
@@ -233,9 +234,14 @@ class CAC_Command extends WP_CLI_Command {
 
 		$assoc_args = '--update=available --format=csv --fields=name,title,update_version,version';
 
+<<<<<<< Updated upstream
 		$results = WP_CLI::runcommand( $command . ' ' . $assoc_args, array(
 			'return' => true
 		) );
+=======
+		$results = WP_CLI::launch_self( $command, array(), $assoc_args, true, true );
+		print_r( $results );
+>>>>>>> Stashed changes
 
 		/*
 		 * No results, so bail!
