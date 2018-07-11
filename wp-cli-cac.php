@@ -234,14 +234,9 @@ class CAC_Command extends WP_CLI_Command {
 
 		$assoc_args = '--update=available --format=csv --fields=name,title,update_version,version';
 
-<<<<<<< Updated upstream
 		$results = WP_CLI::runcommand( $command . ' ' . $assoc_args, array(
 			'return' => true
 		) );
-=======
-		$results = WP_CLI::launch_self( $command, array(), $assoc_args, true, true );
-		print_r( $results );
->>>>>>> Stashed changes
 
 		/*
 		 * No results, so bail!
