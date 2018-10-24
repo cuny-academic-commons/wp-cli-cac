@@ -132,6 +132,7 @@ class CAC_Command extends WP_CLI_Command {
 		WP_CLI::log( 'Also, don\'t forget to manually check http://themetrust.com for updates to "reveal".' );
 		WP_CLI::log( 'Also, don\'t forget to manually check https://themify.me/themes/basic for updates to "basic".' );
 		WP_CLI::log( 'Also, don\'t forget to manually check https://elegantthemes.com for updates to "DailyNotes", "ArtSee", "13Floor", "eNews", "Lucid", "Basic", "Cion", "AskIt", "BusinessCard".' );
+		WP_CLI::log( 'Look for Gravity Forms updates' );
 
 		WP_CLI::success( 'All done! Be sure to review the release manifest (.cac-major-update.json) before checking into the repo.' );
 	}
