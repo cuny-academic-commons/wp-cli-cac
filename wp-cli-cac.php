@@ -22,6 +22,7 @@ class CAC_Command extends WP_CLI_Command {
 	 */
 	protected $do_not_update = array(
 		'plugin' => array(
+			'accordion-slider-lite', // #16654
 			'buddypress-group-documents',
 			'bp-import-blog-activity',
 			'cac-group-admin-auto-add',
