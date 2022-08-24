@@ -24,9 +24,11 @@ class CAC_Command extends WP_CLI_Command {
 		'plugin' => array(
 			'accordion-slider-lite', // #16654
 			'buddypress-group-documents',
+			'bp-groupblog',
 			'bp-import-blog-activity',
 			'cac-group-admin-auto-add',
-			'event-organiser-ical-sync', // temporary
+			'elementor',
+			'event-organiser-ical-sync',
 			'forum-attachments-for-buddypress',
 			'plugins-list', // not compatible with our PHP.
 			'post-gallery-widget',
@@ -510,7 +512,7 @@ class CAC_Command extends WP_CLI_Command {
 
 		// Blog-specific tables first.
 		$base_args = array( 'search-replace', $from_domain, $to_domain );
-		$base_assoc_args = array( 'skip-columns' => 'guid', 'precise' => 1 );
+		$base_assoc_args = array( 'skip-columns' => 'guid', 'precise' => 1, 'all-tables' => 1 );
 		if ( isset( $assoc_args['dry-run'] ) ) {
 			$base_assoc_args['dry-run'] = 1;
 		}
