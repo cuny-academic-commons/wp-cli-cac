@@ -43,6 +43,16 @@ class CAC_Command extends WP_CLI_Command {
 	);
 
 	/**
+	 * Items whose updates should trigger specific notifications.
+	 */
+	protected $notify_on_update = [
+		'plugin' => [
+			'ml-slider' => 'Apply manual patch to metaslider_plugin_is_installed()',
+		],
+		'theme'  => [],
+	];
+
+	/**
 	 * Prepare a major update manifest and blog post.
 	 *
 	 * ## OPTIONS
@@ -406,7 +416,8 @@ class CAC_Command extends WP_CLI_Command {
 		// Get a list of available updates. If whitelisted series matches, no need to check svn.
 		$available_updates = $this->get_available_updates_for_type( $type );
 
-		$updates = array();
+		$updates = [];
+		$notify  = [];
 		foreach ( $items as $item ) {
 			if ( ! isset( $available_updates[ $item->name ] ) ) {
 				continue;
@@ -451,6 +462,11 @@ class CAC_Command extends WP_CLI_Command {
 					break;
 				}
 			}
+
+			// If this needs a notification.
+			if ( isset( $this->notify_on_update[ $type ], $item->name ) ) {
+				$notify[] = $item->name;
+			}
 		}
 
 		foreach ( $updates as $plugin_name => $update_version ) {
@@ -467,6 +483,10 @@ class CAC_Command extends WP_CLI_Command {
 			WP_CLI::run_command( $args, $assoc_args );
 
 			remove_filter( 'locale', array( $this, 'set_locale' ) );
+		}
+
+		foreach ( $notify as $notify_item => $notify_action ) {
+			WP_CLI::warning( sprintf( 'The following %s has been updated and needs attention: %s. Action: %s', $type, $notify_item, $notify_action ) );
 		}
 	}
 
