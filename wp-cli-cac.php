@@ -43,6 +43,17 @@ class CAC_Command extends WP_CLI_Command {
 	);
 
 	/**
+	 * Only perform minor updates on these items.
+	 */
+	protected $do_not_update_major = [
+		'plugin' => [
+			'events-tickets',
+			'the-events-calendar',
+		],
+		'theme' => [],
+	];
+
+	/**
 	 * Items whose updates should trigger specific notifications.
 	 */
 	protected $notify_on_update = [
@@ -115,7 +126,7 @@ class CAC_Command extends WP_CLI_Command {
 			$assoc_args['date']
 		) );
 
-		$this->set_up_blacklist( $assoc_args );
+		$this->set_up_blacklist( $assoc_args, 'major' );
 
 		foreach ( $types as $type ) {
 			$data = $this->prepare_major_update_for_type( $type );
@@ -200,7 +211,7 @@ class CAC_Command extends WP_CLI_Command {
 			'data' => array(),
 		);
 
-		$this->set_up_blacklist( $assoc_args );
+		$this->set_up_blacklist( $assoc_args, 'minor' );
 
 		foreach ( $types as $type ) {
 			$items = $this->get_available_updates_for_type( $type );
@@ -570,8 +581,9 @@ class CAC_Command extends WP_CLI_Command {
 	 * Set up the update blacklist, based on arguments passed to the command.
 	 *
 	 * @param array $assoc_args Associative argument array.
+	 * @param string $type Type of update. 'major' or 'minor'.
 	 */
-	protected function set_up_blacklist( $assoc_args ) {
+	protected function set_up_blacklist( $assoc_args, $type ) {
 		if ( isset( $assoc_args['exclude-plugins'] ) ) {
 			$this->update_blacklist['plugin'] = array_filter( explode( ',', $assoc_args['exclude-plugins'] ) );
 		} else {
@@ -582,6 +594,11 @@ class CAC_Command extends WP_CLI_Command {
 			$this->update_blacklist['theme'] = array_filter( explode( ',', $assoc_args['exclude-themes'] ) );
 		} else {
 			$this->update_blacklist['theme'] = $this->do_not_update['theme'];
+		}
+
+		if ( 'major' === $type ) {
+			$this->update_blacklist['plugin'] = array_merge( $this->update_blacklist['plugin'], $this->do_not_update_major['plugin'] );
+			$this->update_blacklist['theme'] = array_merge( $this->update_blacklist['theme'], $this->do_not_update_major['theme'] );
 		}
 	}
 
