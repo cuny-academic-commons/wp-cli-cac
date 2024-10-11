@@ -464,7 +464,7 @@ class CAC_Command extends WP_CLI_Command {
 			}
 
 			// If this needs a notification.
-			if ( isset( $this->notify_on_update[ $type ], $item->name ) ) {
+			if ( isset( $this->notify_on_update[ $type ][ $item->name ] ) ) {
 				$notify[] = $item->name;
 			}
 		}
