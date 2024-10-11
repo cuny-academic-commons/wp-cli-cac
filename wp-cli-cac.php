@@ -176,8 +176,6 @@ class CAC_Command extends WP_CLI_Command {
 			$this->do_major_update_for_type( $type, $items );
 		}
 
-		unlink( $json_path );
-		WP_CLI::log( sprintf( 'Deleted %s.', $json_path ) );
 		WP_CLI::success( 'Major updates completed.' );
 	}
 
