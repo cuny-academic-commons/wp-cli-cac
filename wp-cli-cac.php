@@ -27,10 +27,8 @@ class CAC_Command extends WP_CLI_Command {
 			'bp-groupblog',
 			'bp-import-blog-activity',
 			'cac-group-admin-auto-add',
-			'dk-pdf', // Not compatible with PHP 7.x
 			'elementor',
 			'event-organiser-ical-sync',
-			'events-manager', // Not compatible with PHP 7.x
 			'forum-attachments-for-buddypress',
 			'post-gallery-widget',
 			'wordpress-mu-domain-mapping',
