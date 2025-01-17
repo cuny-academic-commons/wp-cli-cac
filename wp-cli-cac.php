@@ -32,7 +32,6 @@ class CAC_Command extends WP_CLI_Command {
 			'event-organiser-ical-sync',
 			'events-manager', // Not compatible with PHP 7.x
 			'forum-attachments-for-buddypress',
-			'plugins-list', // not compatible with our PHP.
 			'post-gallery-widget',
 			'wordpress-mu-domain-mapping',
 			'wp-front-end-editor', // we run a fork.
