@@ -773,7 +773,7 @@ class CAC_Command extends WP_CLI_Command {
 			);
 		}
 
-		$text .= "\n\n" . '<p>For more details on major update releases, please visit <a href="http://dev.commons.gc.cuny.edu/release-schedule-and-procedures/">our release schedule and procedures page</a>.</p>.';
+		$text .= "\n\n" . '<p>For more details on major update releases, please visit <a href="http://dev.commons.gc.cuny.edu/release-schedule-and-procedures/">our release schedule and procedures page</a>.</p>';
 
 		$title = sprintf( 'Major plugin and theme updates for %s', $pretty_date );
 		return array(
