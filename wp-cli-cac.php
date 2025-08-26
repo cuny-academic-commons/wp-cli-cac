@@ -804,27 +804,7 @@ class CAC_Command extends WP_CLI_Command {
 				continue;
 			}
 
-			// There's a mismatch, so we have to scrape wordpress.org for versions. Whee!
-			// @todo Get someone to implement this in the API.
-			// Used to use `svn_ls()` for this, but PECL broke for me. Let the fun begin.
-			$url = "http://{$type}s.svn.wordpress.org/{$item->name}/tags/";
-			$f = wp_remote_get( $url );
-			$body = wp_remote_retrieve_body( $f );
-
-			$dom = new DomDocument();
-			$dom->loadHTML( $body );
-			$tags = $dom->getElementsByTagName( 'li' );
-			$versions = array();
-			foreach ( $tags as $tag ) {
-				$versions[] = rtrim( $tag->nodeValue, '/' );
-			}
-
-			// If a plugin has been closed or whatever.
-			if ( ! $versions ) {
-				continue;
-			}
-
-			rsort( $versions );
+			$versions = $this->wporg_get_all_versions( $type, $item->name );
 
 			foreach ( $versions as $v ) {
 				$v_version_compare = $this->version_compare( $v, $item->update_series );
@@ -860,6 +840,74 @@ class CAC_Command extends WP_CLI_Command {
 		foreach ( $notify as $notify_item => $notify_action ) {
 			WP_CLI::warning( sprintf( 'The following %s has been updated and needs attention: %s. Action: %s', $type, $notify_item, $notify_action ) );
 		}
+	}
+
+	/**
+	 * Get all released versions for a wp.org plugin or theme (no scraping).
+	 *
+	 * @param 'plugin'|'theme' $type
+	 * @param string           $slug  The wp.org slug.
+	 * @return string[]                Versions, newest -> oldest. Empty array on failure.
+	 */
+	protected function wporg_get_all_versions( $type, $slug ) {
+		$endpoint = ( 'plugin' === $type )
+			? 'https://api.wordpress.org/plugins/info/1.2/'
+			: 'https://api.wordpress.org/themes/info/1.2/';
+
+		$action = ( 'plugin' === $type ) ? 'plugin_information' : 'theme_information';
+
+		$args = array(
+			'timeout' => 15,
+			'user-agent' => 'Upgrade-Script/' . ( defined( 'WP_INSTALLING' ) ? 'cli' : 'wp' ) . '; ' . home_url( '/' ),
+			'body'   => array(
+				'action'  => $action,
+				'request' => array(
+					'slug'   => $slug,
+					'fields' => array(
+						'versions' => true, // this is the key bit
+					),
+				),
+			),
+		);
+
+		$response = wp_remote_post( $endpoint, $args );
+		if ( is_wp_error( $response ) ) {
+			return array();
+		}
+
+		$body = wp_remote_retrieve_body( $response );
+
+		// Try JSON first (v1.2).
+		$data = json_decode( $body );
+		if ( ! $data ) {
+			// Fallback to older serialized format (v1.1) if needed.
+			$endpoint = ( 'plugin' === $type )
+				? 'https://api.wordpress.org/plugins/info/1.1/'
+				: 'https://api.wordpress.org/themes/info/1.1/';
+			$response = wp_remote_post( $endpoint, $args );
+			if ( is_wp_error( $response ) ) {
+				return array();
+			}
+			$body = wp_remote_retrieve_body( $response );
+			$data = @unserialize( $body );
+		}
+
+		if ( ! $data || empty( $data->versions ) ) {
+			return array(); // Closed/no releases/etc.
+		}
+
+		// $data->versions is map: version => download_url
+		$versions = array_keys( (array) $data->versions );
+
+		// Sort using version_compare, newest first.
+		usort(
+			$versions,
+			static function ( $a, $b ) {
+				return version_compare( $b, $a ); // reverse
+			}
+		);
+
+		return $versions;
 	}
 
 	public function set_locale( $locale ) {
