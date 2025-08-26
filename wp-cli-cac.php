@@ -140,17 +140,7 @@ class CAC_Command extends WP_CLI_Command {
 		file_put_contents( $json_path, json_encode( $update_data, JSON_PRETTY_PRINT ) );
 		WP_CLI::log( sprintf( 'Saved results to %s.', $json_path ) );
 
-		$blog_post = $this->generate_major_update_blog_post( $update_data, $assoc_args );
-
-		WP_CLI::log( '' );
-		WP_CLI::log( "Don't forget a blog post. Title it \"{$blog_post['title']}\". Here's a draft:" );
-		WP_CLI::log( '' );
-		WP_CLI::log( '===' );
-		WP_CLI::log( '' );
-		WP_CLI::log( $blog_post['text'] );
-		WP_CLI::log( '' );
-		WP_CLI::log( '===' );
-		WP_CLI::log( '' );
+		$this->create_major_update_blog_post( $update_data, $assoc_args );
 
 		WP_CLI::log( 'Don\'t forget to manually check WooThemes for available updates.' );
 		WP_CLI::log( 'Also, don\'t forget to manually check https://wpcom-themes.svn.automattic.com for updates to "imbalance2" and "manifest".' );
@@ -245,6 +235,374 @@ class CAC_Command extends WP_CLI_Command {
 				remove_filter( 'locale', array( $this, 'set_locale' ) );
 			}
 		}
+	}
+
+	/**
+	 * Create a draft blog post for major updates via the WordPress REST API.
+	 *
+	 * @param array $update_data Update data from prepare_major_update.
+	 * @param array $assoc_args Command arguments.
+	 */
+	protected function create_major_update_blog_post( $update_data, $assoc_args ) {
+		// Generate blog post content
+		$blog_post = $this->generate_major_update_blog_post( $update_data, $assoc_args );
+
+		// Authentication setup
+		$rest_url = defined('CAC_UPDATE_REST_URL') ? CAC_UPDATE_REST_URL : 'https://dev.commons.gc.cuny.edu/wp-json';
+		$app_password = defined('CAC_UPDATE_APP_PASSWORD') ? CAC_UPDATE_APP_PASSWORD : '';
+		$app_username = defined('CAC_UPDATE_APP_USERNAME') ? CAC_UPDATE_APP_USERNAME : '';
+
+		if ( empty( $app_password ) || empty( $app_username ) ) {
+			WP_CLI::warning( 'App password or username not configured. Define CAC_UPDATE_APP_USERNAME and CAC_UPDATE_APP_PASSWORD constants to enable automatic post creation.' );
+			return false;
+		}
+
+		// Collect all plugin/theme slugs for tags
+		$tag_slugs = array();
+		foreach ( $update_data['data'] as $type => $items ) {
+			foreach ( $items as $item ) {
+				$tag_slugs[] = $item['name'];
+			}
+		}
+
+		// Add additional required tags
+		$version_parts = explode('.', $assoc_args['version']);
+		$release_series = $version_parts[0] . '.' . $version_parts[1] . '.x';
+		$release_name = $assoc_args['version'];
+
+		$additional_tags = array(
+			$release_series,
+			$release_name,
+			'major-update-releases'
+		);
+
+		$tag_slugs = array_merge($tag_slugs, $additional_tags);
+
+		// Get existing tags
+		$existing_tags = $this->get_existing_tags( $rest_url, $app_username, $app_password );
+
+		// Process tags (use existing or create new ones)
+		$post_tags = $this->process_tags( $tag_slugs, $existing_tags, $rest_url, $app_username, $app_password );
+
+		// Convert content to Gutenberg blocks
+		$block_content = $this->convert_to_gutenberg_blocks($blog_post['text']);
+
+		// Create draft post
+		$post_data = array(
+			'title'      => $blog_post['title'],
+			'content'    => $block_content,
+			'status'     => 'draft',
+			'tags'       => $post_tags,
+			'categories' => [ 9 ], // 'Updates'
+		);
+
+		$response = $this->create_post( $post_data, $rest_url, $app_username, $app_password );
+
+		if ( is_wp_error( $response ) ) {
+			WP_CLI::error( sprintf( 'Failed to create draft post: %s', $response->get_error_message() ) );
+			return false;
+		}
+
+		$post_id = $response['id'];
+		$edit_url = str_replace(parse_url($rest_url, PHP_URL_HOST), 'dev.commons.gc.cuny.edu', $rest_url);
+		$edit_url = preg_replace('|/wp-json.*|', '', $edit_url) . '/wp-admin/post.php?post=' . $post_id . '&action=edit';
+
+		WP_CLI::success( sprintf( 'Draft post created! Edit it here: %s', $edit_url ) );
+
+		return true;
+	}
+
+	/**
+	 * Convert HTML content to Gutenberg blocks format while preserving order.
+	 *
+	 * @param string $content HTML content.
+	 * @return string Content in Gutenberg blocks format.
+	 */
+	protected function convert_to_gutenberg_blocks($content) {
+		// Initialize block content
+		$block_content = '';
+
+		// Use DOMDocument to properly parse the HTML
+		$dom = new DOMDocument();
+
+		$content = mb_convert_encoding($content, 'HTML-ENTITIES', 'UTF-8');
+
+		// Prevent HTML5 parsing errors by using LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+		// and wrapping content in a temporary root element
+		libxml_use_internal_errors(true); // Suppress warnings for invalid HTML
+		$dom->loadHTML('<div id="temp-root">' . $content . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+		libxml_clear_errors();
+
+		// Get the root element (our temp div)
+		$root = $dom->getElementById('temp-root');
+
+		// Process each child node in order
+		if ($root && $root->hasChildNodes()) {
+			foreach ($root->childNodes as $node) {
+				// Skip text nodes that are just whitespace
+				if ($node->nodeType === XML_TEXT_NODE && trim($node->textContent) === '') {
+					continue;
+				}
+
+				if ($node->nodeType === XML_ELEMENT_NODE) {
+					$tag_name = strtolower($node->nodeName);
+
+					// Handle different element types
+					switch ($tag_name) {
+						case 'p':
+							$inner_html = $dom->saveHTML($node);
+							$block_content .= '<!-- wp:paragraph -->' . PHP_EOL;
+							$block_content .= $inner_html . PHP_EOL;
+							$block_content .= '<!-- /wp:paragraph -->' . PHP_EOL . PHP_EOL;
+							break;
+
+						case 'ul':
+							$inner_html = $dom->saveHTML($node);
+							$block_content .= '<!-- wp:list -->' . PHP_EOL;
+							$block_content .= $inner_html . PHP_EOL;
+							$block_content .= '<!-- /wp:list -->' . PHP_EOL . PHP_EOL;
+							break;
+
+						case 'ol':
+							$inner_html = $dom->saveHTML($node);
+							$block_content .= '<!-- wp:list {"ordered":true} -->' . PHP_EOL;
+							$block_content .= $inner_html . PHP_EOL;
+							$block_content .= '<!-- /wp:list -->' . PHP_EOL . PHP_EOL;
+							break;
+
+						case 'h1':
+						case 'h2':
+						case 'h3':
+						case 'h4':
+						case 'h5':
+						case 'h6':
+							$level = substr($tag_name, 1);
+							$inner_html = $dom->saveHTML($node);
+							$block_content .= '<!-- wp:heading {"level":' . $level . '} -->' . PHP_EOL;
+							$block_content .= $inner_html . PHP_EOL;
+							$block_content .= '<!-- /wp:heading -->' . PHP_EOL . PHP_EOL;
+							break;
+
+						default:
+							// For any other HTML elements, wrap in an HTML block
+							$inner_html = $dom->saveHTML($node);
+							$block_content .= '<!-- wp:html -->' . PHP_EOL;
+							$block_content .= $inner_html . PHP_EOL;
+							$block_content .= '<!-- /wp:html -->' . PHP_EOL . PHP_EOL;
+							break;
+					}
+				} elseif ($node->nodeType === XML_TEXT_NODE && trim($node->textContent) !== '') {
+					// For plain text nodes with content, wrap in paragraph blocks
+					$block_content .= '<!-- wp:paragraph -->' . PHP_EOL;
+					$block_content .= '<p>' . htmlspecialchars($node->textContent) . '</p>' . PHP_EOL;
+					$block_content .= '<!-- /wp:paragraph -->' . PHP_EOL . PHP_EOL;
+				}
+			}
+		}
+
+		// If we couldn't process any blocks (perhaps due to malformed HTML),
+		// fall back to wrapping the entire content in a paragraph block
+		if (empty($block_content)) {
+			$block_content = '<!-- wp:paragraph -->' . PHP_EOL;
+			$block_content .= '<p>' . $content . '</p>' . PHP_EOL;
+			$block_content .= '<!-- /wp:paragraph -->' . PHP_EOL;
+		}
+
+		return $block_content;
+	}
+
+	/**
+	 * Process tags - use existing ones or create new ones as needed.
+	 *
+	 * @param array $tag_slugs Tag slugs to process.
+	 * @param array $existing_tags Existing tags from the site.
+	 * @param string $rest_url Base REST API URL.
+	 * @param string $username Username for authentication.
+	 * @param string $password App password for authentication.
+	 * @return array Array of tag IDs.
+	 */
+	protected function process_tags( $tag_slugs, $existing_tags, $rest_url, $username, $password ) {
+		$tag_ids = array();
+
+		foreach ( $tag_slugs as $slug ) {
+			$tag_id = null;
+
+			// Sanitize the slug
+			$slug = sanitize_title($slug);
+
+			// Look for existing tag with matching slug
+			foreach ( $existing_tags as $tag ) {
+				if ( $tag['slug'] === $slug ) {
+					$tag_id = $tag['id'];
+					break;
+				}
+			}
+
+			// Create new tag if not found
+			if ( null === $tag_id ) {
+				$new_tag = $this->create_tag( $slug, $rest_url, $username, $password );
+				if ( $new_tag && isset( $new_tag['id'] ) ) {
+					$tag_id = $new_tag['id'];
+				}
+			}
+
+			if ( $tag_id ) {
+				$tag_ids[] = $tag_id;
+			}
+		}
+
+		return $tag_ids;
+	}
+
+	/**
+	 * Create a new tag.
+	 *
+	 * @param string $slug Tag slug.
+	 * @param string $rest_url Base REST API URL.
+	 * @param string $username Username for authentication.
+	 * @param string $password App password for authentication.
+	 * @return array|bool Tag data on success, false on failure.
+	 */
+	protected function create_tag( $slug, $rest_url, $username, $password ) {
+		$tags_endpoint = $rest_url . '/wp/v2/tags';
+
+		// Make plugin/theme slug more readable for the tag name
+		$name = ucwords( str_replace( array( '-', '_' ), ' ', $slug ) );
+
+		// Special case for some specific tags
+		if ($slug === 'major-update-releases') {
+			$name = 'Major Update Releases';
+		} elseif (preg_match('/^[\d\.]+x$/', $slug)) {
+			// For version series like "2.5.x"
+			$name = $slug; // Keep the original format
+		} elseif (preg_match('/^[\d\.]+$/', $slug)) {
+			// For version numbers like "2.5.6"
+			$name = $slug; // Keep the original format
+		}
+
+		$response = wp_remote_post(
+			$tags_endpoint,
+			array(
+				'headers' => array(
+					'Authorization' => 'Basic ' . base64_encode( $username . ':' . $password ),
+					'Content-Type'  => 'application/json',
+				),
+				'body' => json_encode( array(
+					'name' => $name,
+					'slug' => $slug,
+				) ),
+				'timeout' => 15,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			WP_CLI::warning( sprintf( 'Failed to create tag "%s": %s', $slug, $response->get_error_message() ) );
+			return false;
+		}
+
+		$tag_data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( empty( $tag_data ) || !isset( $tag_data['id'] ) ) {
+			WP_CLI::warning( sprintf( 'Failed to create tag "%s"', $slug ) );
+			return false;
+		}
+
+		return $tag_data;
+	}
+
+	/**
+	 * Get existing tags from WordPress.
+	 *
+	 * @param string $rest_url Base REST API URL.
+	 * @param string $username Username for authentication.
+	 * @param string $password App password for authentication.
+	 * @return array Existing tags.
+	 */
+	protected function get_existing_tags( $rest_url, $username, $password ) {
+		$tags = array();
+		$page = 1;
+		$per_page = 100;
+		$more_tags = true;
+
+		while ( $more_tags ) {
+			$tags_endpoint = $rest_url . '/wp/v2/tags?per_page=' . $per_page . '&page=' . $page;
+
+			$response = wp_remote_get(
+				$tags_endpoint,
+				array(
+					'headers' => array(
+						'Authorization' => 'Basic ' . base64_encode( $username . ':' . $password ),
+					),
+					'timeout' => 15,
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				WP_CLI::warning( sprintf( 'Failed to fetch tags: %s', $response->get_error_message() ) );
+				return $tags;
+			}
+
+			$response_tags = json_decode( wp_remote_retrieve_body( $response ), true );
+
+			if ( empty( $response_tags ) || !is_array( $response_tags ) ) {
+				$more_tags = false;
+			} else {
+				$tags = array_merge( $tags, $response_tags );
+				$page++;
+
+				// Check if we've reached the last page
+				$total_pages = wp_remote_retrieve_header( $response, 'X-WP-TotalPages' );
+				if ( $page > intval( $total_pages ) ) {
+					$more_tags = false;
+				}
+			}
+		}
+
+		return $tags;
+	}
+
+	/**
+	 * Create a post via the REST API.
+	 *
+	 * @param array $post_data Post data.
+	 * @param string $rest_url Base REST API URL.
+	 * @param string $username Username for authentication.
+	 * @param string $password App password for authentication.
+	 * @return array|WP_Error Post data on success, WP_Error on failure.
+	 */
+	protected function create_post( $post_data, $rest_url, $username, $password ) {
+		$posts_endpoint = $rest_url . '/wp/v2/posts';
+
+		$response = wp_remote_post(
+			$posts_endpoint,
+			array(
+				'headers' => array(
+					'Authorization' => 'Basic ' . base64_encode( $username . ':' . $password ),
+					'Content-Type'  => 'application/json',
+				),
+				'body' => json_encode( array(
+					'title'    => $post_data['title'],
+					'content'  => $post_data['content'],
+					'status'   => $post_data['status'],
+					'tags'     => $post_data['tags'],
+				) ),
+				'timeout' => 15,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$response_code = wp_remote_retrieve_response_code( $response );
+		if ( $response_code < 200 || $response_code >= 300 ) {
+			return new WP_Error(
+				'rest_api_error',
+				sprintf( 'REST API returned status code %d: %s', $response_code, wp_remote_retrieve_body( $response ) )
+			);
+		}
+
+		return json_decode( wp_remote_retrieve_body( $response ), true );
 	}
 
 	/**
