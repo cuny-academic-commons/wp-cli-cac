@@ -29,6 +29,7 @@ class CAC_Command extends WP_CLI_Command {
 			'cac-group-admin-auto-add',
 			'elementor',
 			'event-organiser-ical-sync',
+			'event-tickets',
 			'forum-attachments-for-buddypress',
 			'post-gallery-widget',
 			'wordpress-mu-domain-mapping',
