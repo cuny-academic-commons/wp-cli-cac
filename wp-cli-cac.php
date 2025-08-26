@@ -75,6 +75,9 @@ class CAC_Command extends WP_CLI_Command {
 	 * [--date=<date>]
 	 * : The date for the major release. If not provided, will be assumed
 	 * to be the 21st of the current month.
+	 *
+	 * [--skip-post]
+	 * : Skip creating a draft blog post.
 	 */
 	public function prepare_major_update( $args, $assoc_args ) {
 		$types = array( 'plugin', 'theme' );
@@ -140,7 +143,9 @@ class CAC_Command extends WP_CLI_Command {
 		file_put_contents( $json_path, json_encode( $update_data, JSON_PRETTY_PRINT ) );
 		WP_CLI::log( sprintf( 'Saved results to %s.', $json_path ) );
 
-		$this->create_major_update_blog_post( $update_data, $assoc_args );
+		if ( isset( $assoc_args['skip-post'] ) ) {
+			$this->create_major_update_blog_post( $update_data, $assoc_args );
+		}
 
 		WP_CLI::log( 'Don\'t forget to manually check WooThemes for available updates.' );
 		WP_CLI::log( 'Also, don\'t forget to manually check https://wpcom-themes.svn.automattic.com for updates to "imbalance2" and "manifest".' );
