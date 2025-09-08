@@ -143,7 +143,7 @@ class CAC_Command extends WP_CLI_Command {
 		file_put_contents( $json_path, json_encode( $update_data, JSON_PRETTY_PRINT ) );
 		WP_CLI::log( sprintf( 'Saved results to %s.', $json_path ) );
 
-		if ( isset( $assoc_args['skip-post'] ) ) {
+		if ( ! isset( $assoc_args['skip-post'] ) ) {
 			$this->create_major_update_blog_post( $update_data, $assoc_args );
 		}
 
